@@ -1,0 +1,13 @@
+{
+  "name":"ابزارآلات مجتبی",
+  "short_name":"ابزارآلات مجتبی",
+  "lang":"fa",
+  "dir":"rtl",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#0f5e63",
+  "theme_color":"#0f5e63",
+  "description":"فروشگاه و کاتالوگ آنلاین ابزارآلات مجتبی",
+  "icons":[{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
