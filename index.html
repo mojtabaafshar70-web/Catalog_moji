@@ -66,14 +66,14 @@ html:not([data-neon=off]) .thanks{border:1.5px solid var(--neon);box-shadow:0 0 
 (()=>{
 /* ====== اتصال به Supabase (بدون سرور): هر درخواست /api/... به یک تابع دیتابیس وصل می‌شود ====== */
 const SB_URL='https://wngkwczrarvugsdapune.supabase.co',SB_KEY='sb_publishable_KJRSBadq6Gl4Dvkd62cq1g_JjV9v5A4';
-const TK='mt_tok',orig=window.fetch.bind(window);
+const TK='mt_tok',orig=window.fetch.bind(window);\nconst storeSlug=()=>{const q=new URLSearchParams(location.search).get('store');if(q)return q.toLowerCase();try{return localStorage.getItem('mt_store')||'mojtaba'}catch{return 'mojtaba'}};
 const tok=()=>{try{return localStorage.getItem(TK)||null}catch{return null}};
 const setTok=t=>{try{t?localStorage.setItem(TK,t):localStorage.removeItem(TK)}catch{}};
 const jres=(o,s=200)=>new Response(JSON.stringify(o),{status:s,headers:{'Content-Type':'application/json'}});
 const NET='ارتباط با سرور برقرار نشد؛ اینترنت یا فیلترشکن را بررسی کنید';
 async function rpc(name,p){
  let r;
- try{r=await orig(SB_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({p:{...(p||{}),token:tok()}})})}
+ try{r=await orig(SB_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({p:{...(p||{}),token:tok(),store:storeSlug()}})})}
  catch{throw new Error(NET)}
  const j=await r.json().catch(()=>null);
  if(!r.ok){const m=(j&&j.message)||'';
@@ -84,7 +84,7 @@ async function rpc(name,p){
  return j}
 async function fn(body){
  let r;
- try{r=await orig(SB_URL+'/functions/v1/mt-api',{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({...body,token:tok()})})}
+ try{r=await orig(SB_URL+'/functions/v1/mt-api',{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({...body,token:tok(),store:storeSlug()})})}
  catch{throw new Error(NET)}
  const j=await r.json().catch(()=>null);
  if(r.status===404)throw new Error('تابع mt-api هنوز در Supabase ساخته نشده است');
@@ -213,7 +213,7 @@ function vAuth(){const m=S.mode,f=(id,ph,t='text',ac='')=>`<input id="${id}" typ
 const pickCust=go(async()=>{if(S.me.role==='customer'){S.view='cust';S.tab='cat';draw();return}S.view='auth';S.mode='login';draw()});
 const openAdmin=go(async()=>{if(S.me.role==='admin'){S.view='admin';S.tab='orders';await load();draw();return}S.setup=(await api('GET','/api/admin/status')).setup;S.view='auth';S.mode='admin';draw()});
 const after=async()=>{S.set=await api('GET','/api/settings');applyTheme();S.me=await api('GET','/api/me');S.view=S.me.role==='admin'?'admin':'cust';S.tab=S.me.role==='admin'?'orders':'cat';await load();draw()};
-const doSetup=go(async()=>{await api('POST','/api/admin/setup',{username:val('a_user'),password:val('a_pass')});await after();toast('حساب مدیر ساخته شد')});
+const doSetup=go(async()=>{const slug=(val('store_slug')||storeSlug()).toLowerCase().trim();localStorage.setItem('mt_store',slug);history.replaceState(null,'',location.pathname+'?store='+encodeURIComponent(slug));await api('POST','/api/admin/setup',{store_slug:slug,store_name:val('store_name')||'فروشگاه جدید',username:val('a_user'),password:val('a_pass')});await after();toast('فروشگاه ساخته شد')});
 const doAdmin=go(async()=>{await api('POST','/api/admin/login',{username:val('a_user'),password:val('a_pass')});await after()});
 const doLogin=go(async()=>{await api('POST','/api/login',{username:val('a_user'),password:val('a_pass')});await after()});
 const doReg=go(async()=>{await api('POST','/api/register',{name:val('r_name'),username:val('a_user'),phone:val('a_phone'),city:val('r_city'),address:val('r_addr'),password:val('a_pass')});await after();toast('ثبت‌نام انجام شد')});
