@@ -138,7 +138,7 @@ async function route(m,p,b){
  if(is('POST','/api/admin/tiers'))return rpc('mt_api_tiers',b);
  if(is('GET','/api/admin/invoices/history'))return rpc('mt_api_invoice_history');
  if(is('POST','/api/admin/invoices/sales'))return rpc('mt_api_sales_invoice_create',b);
- if(x=id('/api/admin/invoices/(purchase|sale)/(\\d+)'))return rpc('mt_api_invoice_delete',{kind:p.split('/')[4],id:p.split('/')[5]});
+ {const im=p.match(/^\/api\/admin\/invoices\/(purchase|sale)\/(\d+)$/);if(m==='DELETE'&&im)return rpc('mt_api_invoice_delete',{kind:im[1],id:im[2]});}
  if(is('GET','/api/admin/backup')){const j=await rpc('mt_api_backup');return new Response(JSON.stringify(j,null,1),{status:200,headers:{'Content-Type':'application/json'}})}
  if(is('POST','/api/admin/tina/extract-sale')){const text=str(b.text,6000);if(!text&&!b.image)throw new Error('عکس یا متن فاکتور را وارد کنید');const out=(await fn({action:'extract_sale',text:text||undefined,image:b.image||undefined})).data||{};const total=Number(fd(out.total));return{customer_name:str(out.customer_name,100)||null,customer_phone:str(out.customer_phone,20)||null,date:/^\\d{4}-\\d{2}-\\d{2}$/.test(str(out.date,12))?out.date:null,total:Number.isFinite(total)&&total>0?Math.round(total):null}}
  if(is('POST','/api/admin/tina/extract')){
