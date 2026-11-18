@@ -123,3 +123,119 @@ grant execute on function public.mt_api_customer_tier(jsonb) to anon,authenticat
 grant execute on function public.mt_api_sales_invoice_create(jsonb) to anon,authenticated;
 grant execute on function public.mt_api_invoice_history(jsonb) to anon,authenticated;
 grant execute on function public.mt_api_invoice_delete(jsonb) to anon,authenticated;
+
+
+-- Correct purchase invoice tracking: every stock-history row must point to its
+-- exact invoice header, so deleting one invoice never guesses by seller/date.
+CREATE OR REPLACE FUNCTION public.mt_api_invoice_confirm(p jsonb)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path TO 'public','extensions' AS $$
+DECLARE
+ u public.mt_users := public.mt_auth(p->>'token','admin');
+ v_seller text := public.mt_str(p->>'seller',100);
+ v_dt text := public.mt_str(p->>'date',20);
+ v_date date;
+ v_row jsonb;
+ v_name text;
+ v_qty bigint;
+ v_up bigint;
+ v_pid bigint;
+ v_pr public.mt_products;
+ v_raw text;
+ v_m numeric;
+ v_sell numeric;
+ v_total bigint := 0;
+ v_invoice_id bigint;
+BEGIN
+ IF u.id IS NULL THEN RAISE EXCEPTION 'دسترسی مدیر لازم است'; END IF;
+ IF jsonb_typeof(p->'rows') IS DISTINCT FROM 'array' OR jsonb_array_length(p->'rows')=0 THEN RAISE EXCEPTION 'ردیفی وجود ندارد'; END IF;
+ IF jsonb_array_length(p->'rows')>200 THEN RAISE EXCEPTION 'تعداد ردیف‌ها زیاد است'; END IF;
+ IF v_dt ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
+  BEGIN v_date:=v_dt::date; EXCEPTION WHEN OTHERS THEN v_date:=NULL; END;
+ END IF;
+ INSERT INTO public.mt_invoices(seller,inv_date,total)
+ VALUES(NULLIF(v_seller,''),v_date,0) RETURNING id INTO v_invoice_id;
+ FOR v_row IN SELECT value FROM jsonb_array_elements(p->'rows') LOOP
+  v_name:=public.mt_str(v_row->>'name',150);
+  v_qty:=public.mt_int(v_row->>'qty',1);
+  v_up:=public.mt_int(v_row->>'unit_price',1);
+  IF v_name='' THEN RAISE EXCEPTION 'نام کالا خالی است'; END IF;
+  IF v_qty>1000000 OR v_up>100000000000 THEN RAISE EXCEPTION 'مقدار عددی نامعتبر است'; END IF;
+  v_pid:=NULL;
+  IF NULLIF(v_row->>'product_id','') IS NOT NULL THEN
+   v_pid:=public.mt_int(v_row->>'product_id',1);
+   SELECT * INTO v_pr FROM public.mt_products WHERE id=v_pid FOR UPDATE;
+   IF v_pr.id IS NULL THEN RAISE EXCEPTION 'محصول انتخاب‌شده وجود ندارد'; END IF;
+   UPDATE public.mt_products SET stock=stock+v_qty,buy_price=v_up WHERE id=v_pid;
+  ELSE
+   v_raw:=regexp_replace(public.mt_fd(coalesce(v_row->>'margin_percent','')),'[,٬\s]','','g');
+   v_sell:=v_up;
+   IF v_raw ~ '^-?[0-9]{1,6}(\.[0-9]+)?$' THEN
+    v_m:=v_raw::numeric;
+    v_sell:=round(v_up*(1+v_m/100)/1000)*1000;
+    IF v_sell<1 THEN v_sell:=v_up; END IF;
+   END IF;
+   IF v_sell>100000000000 THEN RAISE EXCEPTION 'قیمت خیلی بزرگ است'; END IF;
+   INSERT INTO public.mt_products(name,buy_price,sell_price,stock,active)
+   VALUES(v_name,v_up,v_sell::bigint,v_qty,false) RETURNING id INTO v_pid;
+  END IF;
+  INSERT INTO public.mt_history(product_id,seller,buy_date,qty,unit_price,source,invoice_id)
+  VALUES(v_pid,NULLIF(v_seller,''),v_date,v_qty,v_up,'invoice',v_invoice_id);
+  v_total:=v_total+v_qty*v_up;
+ END LOOP;
+ UPDATE public.mt_invoices SET total=v_total WHERE id=v_invoice_id;
+ RETURN jsonb_build_object('total',v_total,'invoice_id',v_invoice_id);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mt_api_invoice_delete(p jsonb)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path TO 'public','extensions' AS $$
+DECLARE
+ a public.mt_users := public.mt_auth(p->>'token','admin');
+ v_kind text:=p->>'kind';
+ v_id bigint;
+ v_inv public.mt_invoices;
+ v_s public.mt_sales_invoices;
+ v_row record;
+ v_count bigint;
+BEGIN
+ IF a.id IS NULL THEN RAISE EXCEPTION 'دسترسی مدیر لازم است'; END IF;
+ v_id:=(p->>'id')::bigint;
+ IF v_kind='sale' THEN
+  SELECT * INTO v_s FROM public.mt_sales_invoices WHERE id=v_id FOR UPDATE;
+  IF v_s.id IS NULL THEN RAISE EXCEPTION 'فاکتور فروش پیدا نشد'; END IF;
+  DELETE FROM public.mt_orders WHERE id=v_s.order_id;
+  RETURN jsonb_build_object('ok',true,'deleted','sale','customer_id',v_s.customer_id);
+ ELSIF v_kind='purchase' THEN
+  SELECT * INTO v_inv FROM public.mt_invoices WHERE id=v_id FOR UPDATE;
+  IF v_inv.id IS NULL THEN RAISE EXCEPTION 'فاکتور خرید پیدا نشد'; END IF;
+  IF EXISTS(SELECT 1 FROM public.mt_history WHERE invoice_id=v_id) THEN
+   FOR v_row IN SELECT product_id,SUM(qty)::bigint AS qty
+    FROM public.mt_history WHERE invoice_id=v_id GROUP BY product_id LOOP
+    UPDATE public.mt_products SET stock=stock-v_row.qty
+     WHERE id=v_row.product_id AND stock>=v_row.qty;
+    IF NOT FOUND THEN RAISE EXCEPTION 'موجودی کالا برای برگشت این فاکتور کافی نیست؛ حذف انجام نشد'; END IF;
+   END LOOP;
+   DELETE FROM public.mt_history WHERE invoice_id=v_id;
+  ELSE
+   SELECT count(*) INTO v_count FROM public.mt_invoices
+    WHERE seller IS NOT DISTINCT FROM v_inv.seller AND inv_date IS NOT DISTINCT FROM v_inv.inv_date;
+   IF v_count<>1 THEN RAISE EXCEPTION 'این فاکتور قدیمی با فاکتور دیگری هم‌فروشنده و هم‌تاریخ است و قابل تفکیک امن نیست'; END IF;
+   FOR v_row IN SELECT product_id,SUM(qty)::bigint AS qty FROM public.mt_history
+    WHERE source='invoice' AND seller IS NOT DISTINCT FROM v_inv.seller
+     AND buy_date IS NOT DISTINCT FROM v_inv.inv_date GROUP BY product_id LOOP
+    UPDATE public.mt_products SET stock=stock-v_row.qty
+     WHERE id=v_row.product_id AND stock>=v_row.qty;
+    IF NOT FOUND THEN RAISE EXCEPTION 'موجودی کالا برای برگشت این فاکتور کافی نیست؛ حذف انجام نشد'; END IF;
+   END LOOP;
+   DELETE FROM public.mt_history WHERE source='invoice'
+    AND seller IS NOT DISTINCT FROM v_inv.seller AND buy_date IS NOT DISTINCT FROM v_inv.inv_date;
+  END IF;
+  DELETE FROM public.mt_invoices WHERE id=v_id;
+  RETURN jsonb_build_object('ok',true,'deleted','purchase');
+ ELSE
+  RAISE EXCEPTION 'نوع فاکتور نامعتبر است';
+ END IF;
+END $$;
+GRANT EXECUTE ON FUNCTION public.mt_api_invoice_confirm(jsonb) TO anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.mt_api_invoice_delete(jsonb) TO anon,authenticated;
