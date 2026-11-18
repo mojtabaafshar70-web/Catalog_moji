@@ -59,7 +59,7 @@ html:not([data-neon=off]) .thanks{border:1.5px solid var(--neon);box-shadow:0 0 
 <script>
 (()=>{
 /* ====== اتصال به Supabase (بدون سرور): هر درخواست /api/... به یک تابع دیتابیس وصل می‌شود ====== */
-const SB_URL='https://wngkwczrarvugsdapune.supabase.co/rest/v1/',SB_KEY='sb_publishable_KJRSBadq6Gl4Dvkd62cq1g_JjV9v5A4';
+const SB_URL='https://wngkwczrarvugsdapune.supabase.co',SB_KEY='sb_publishable_KJRSBadq6Gl4Dvkd62cq1g_JjV9v5A4';
 const TK='mt_tok',orig=window.fetch.bind(window);
 const tok=()=>{try{return localStorage.getItem(TK)||null}catch{return null}};
 const setTok=t=>{try{t?localStorage.setItem(TK,t):localStorage.removeItem(TK)}catch{}};
