@@ -121,18 +121,18 @@ async function route(m,p,b){
  if(is('PUT','/api/admin/settings'))return rpc('mt_api_settings_update',b);
  if(is('GET','/api/products'))return rpc('mt_api_products');
  if(is('POST','/api/admin/products')){const image=await imgUrl(b.image);return rpc('mt_api_product_save',{...b,id:null,image})}
- if(x=id('/api/admin/products/(\d+)')){if(m==='PUT'){const image=await imgUrl(b.image);return rpc('mt_api_product_save',{...b,id:x,image})}}
- if(x=id('/api/admin/products/(\d+)/history')){if(m==='GET')return rpc('mt_api_history',{pid:x});if(m==='POST')return rpc('mt_api_history_add',{...b,pid:x})}
+ if(x=id('/api/admin/products/(\\d+)')){if(m==='PUT'){const image=await imgUrl(b.image);return rpc('mt_api_product_save',{...b,id:x,image})}}
+ if(x=id('/api/admin/products/(\\d+)/history')){if(m==='GET')return rpc('mt_api_history',{pid:x});if(m==='POST')return rpc('mt_api_history_add',{...b,pid:x})}
  if(is('POST','/api/admin/prices'))return rpc('mt_api_prices',b);
  if(is('POST','/api/admin/prices/revert'))return rpc('mt_api_prices_revert',b);
  if(is('POST','/api/orders'))return rpc('mt_api_order_create',b);
  if(is('GET','/api/orders'))return rpc('mt_api_orders');
  if(is('GET','/api/admin/orders'))return rpc('mt_api_admin_orders');
- if(x=id('/api/admin/orders/(\d+)/status'))return rpc('mt_api_order_status',{...b,id:x});
+ if(x=id('/api/admin/orders/(\\d+)/status'))return rpc('mt_api_order_status',{...b,id:x});
  if(is('POST','/api/admin/discounts'))return rpc('mt_api_discounts',b);
- if(x=id('/api/orders/(\d+)/payments'))return rpc('mt_api_payment_add',{...b,id:x});
- if(x=id('/api/orders/(\d+)/pay-online'))throw new Error('پرداخت آنلاین فعال نیست؛ از «ثبت اطلاعات واریز» استفاده کنید');
- if(x=id('/api/admin/payments/(\d+)/status'))return rpc('mt_api_payment_status',{...b,id:x});
+ if(x=id('/api/orders/(\\d+)/payments'))return rpc('mt_api_payment_add',{...b,id:x});
+ if(x=id('/api/orders/(\\d+)/pay-online'))throw new Error('پرداخت آنلاین فعال نیست؛ از «ثبت اطلاعات واریز» استفاده کنید');
+ if(x=id('/api/admin/payments/(\\d+)/status'))return rpc('mt_api_payment_status',{...b,id:x});
  if(is('GET','/api/admin/customers'))return rpc('mt_api_customers');
  if(is('POST','/api/admin/invoices/confirm'))return rpc('mt_api_invoice_confirm',b);
  if(is('GET','/api/customer/tier'))return rpc('mt_api_customer_tier');
