@@ -239,3 +239,90 @@ BEGIN
 END $$;
 GRANT EXECUTE ON FUNCTION public.mt_api_invoice_confirm(jsonb) TO anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.mt_api_invoice_delete(jsonb) TO anon,authenticated;
+
+
+-- Account recovery and recovery-phrase support (2026-11-19)
+GRANT CREATE ON SCHEMA public TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.mt_api_admin_recover(p jsonb)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','extensions'
+AS $function$
+DECLARE v_q text:=lower(public.mt_fd(public.mt_str(p->>'username',60))); v_k text; u public.mt_users; sid uuid;
+BEGIN
+ sid:=public.mt_set_context(p->>'store',NULL);
+ IF sid IS NULL THEN RETURN public.mt_err('فروشگاه پیدا نشد؛ لینک فروشگاه را بررسی کنید'); END IF;
+ PERFORM public.mt_pass(p->>'next');
+ v_k:='arec:'||sid::text||':'||coalesce(nullif(v_q,''),'lookup');
+ IF public.mt_locked(v_k) THEN RETURN public.mt_err('تعداد تلاش‌ها زیاد است؛ ۱۵ دقیقه بعد دوباره امتحان کنید'); END IF;
+ SELECT * INTO u FROM public.mt_users WHERE store_id=sid AND role='admin' AND active
+  AND (v_q='' OR lower(username)=v_q) AND rec_hash IS NOT NULL
+  AND rec_hash=crypt(public.mt_rec(p->>'recovery'),rec_hash) LIMIT 1;
+ IF u.id IS NULL THEN PERFORM public.mt_fail(v_k); RETURN public.mt_err('نام کاربری یا کلمه بازیابی درست نیست'); END IF;
+ UPDATE public.mt_users SET pass_hash=crypt(p->>'next',gen_salt('bf',10)) WHERE id=u.id;
+ DELETE FROM public.mt_sessions WHERE user_id=u.id;
+ PERFORM public.mt_clear(v_k);
+ RETURN jsonb_build_object('ok',true,'username',u.username);
+END $function$;
+
+CREATE OR REPLACE FUNCTION public.mt_api_recover(p jsonb)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','extensions'
+AS $function$
+DECLARE v_q text:=lower(public.mt_fd(public.mt_str(p->>'username',60))); v_k text; u public.mt_users; sid uuid;
+BEGIN
+ sid:=public.mt_set_context(p->>'store',NULL);
+ IF sid IS NULL THEN RETURN public.mt_err('فروشگاه پیدا نشد؛ لینک فروشگاه را بررسی کنید'); END IF;
+ PERFORM public.mt_pass(p->>'next');
+ v_k:='rec:'||sid::text||':'||coalesce(nullif(v_q,''),'lookup');
+ IF public.mt_locked(v_k) THEN RETURN public.mt_err('تعداد تلاش‌ها زیاد است؛ ۱۵ دقیقه بعد دوباره امتحان کنید'); END IF;
+ SELECT * INTO u FROM public.mt_users WHERE store_id=sid AND role='customer' AND active
+  AND (lower(username)=v_q OR regexp_replace(phone,'[[:space:]]','','g')=regexp_replace(v_q,'[[:space:]]','','g'))
+  AND rec_hash IS NOT NULL AND rec_hash=crypt(public.mt_rec(p->>'recovery'),rec_hash) LIMIT 1;
+ IF u.id IS NULL THEN PERFORM public.mt_fail(v_k); RETURN public.mt_err('نام کاربری/موبایل یا کلمه بازیابی درست نیست'); END IF;
+ UPDATE public.mt_users SET pass_hash=crypt(p->>'next',gen_salt('bf',10)) WHERE id=u.id;
+ DELETE FROM public.mt_sessions WHERE user_id=u.id;
+ PERFORM public.mt_clear(v_k);
+ RETURN jsonb_build_object('ok',true,'username',u.username);
+END $function$;
+
+CREATE OR REPLACE FUNCTION public.mt_api_recovery_set(p jsonb)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','extensions'
+AS $function$
+DECLARE u public.mt_users:=public.mt_auth(p->>'token');
+BEGIN
+ PERFORM public.mt_set_context(p->>'store',p->>'token');
+ IF u.id IS NULL THEN RAISE EXCEPTION 'نشست ورود معتبر نیست؛ دوباره وارد شوید'; END IF;
+ IF u.pass_hash<>crypt(coalesce(p->>'password',''),u.pass_hash) THEN RAISE EXCEPTION 'رمز فعلی اشتباه است'; END IF;
+ UPDATE public.mt_users SET rec_hash=crypt(public.mt_rec(p->>'recovery'),gen_salt('bf',10)) WHERE id=u.id;
+ RETURN jsonb_build_object('ok',true);
+END $function$;
+
+CREATE OR REPLACE FUNCTION public.mt_api_register(p jsonb)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','extensions'
+AS $function$
+DECLARE
+ v_name text:=public.mt_str(p->>'name',80);
+ v_phone text:=regexp_replace(public.mt_fd(public.mt_str(p->>'phone',20)),'[[:space:]]','','g');
+ v_city text:=public.mt_str(p->>'city',60); v_addr text:=public.mt_str(p->>'address',400);
+ v_user text; v_uid bigint; v_rec text;
+BEGIN
+ PERFORM public.mt_set_context(p->>'store',p->>'token');
+ v_user:=public.mt_username(p->>'username'); v_rec:=public.mt_rec(p->>'recovery');
+ IF v_phone !~ '^09[0-9]{9}$' THEN RAISE EXCEPTION 'شماره موبایل باید به شکل 09123456789 باشد'; END IF;
+ IF v_name='' OR v_city='' OR v_addr='' THEN RAISE EXCEPTION 'همه اطلاعات الزامی است'; END IF;
+ PERFORM public.mt_pass(p->>'password');
+ IF EXISTS(SELECT 1 FROM public.mt_users WHERE phone=v_phone) THEN RAISE EXCEPTION 'با این شماره قبلاً ثبت‌نام شده است'; END IF;
+ IF EXISTS(SELECT 1 FROM public.mt_users WHERE lower(username)=v_user) THEN RAISE EXCEPTION 'این نام کاربری قبلاً گرفته شده است'; END IF;
+ INSERT INTO public.mt_users(role,username,name,phone,city,address,pass_hash,rec_hash)
+ VALUES('customer',v_user,v_name,v_phone,v_city,v_addr,crypt(p->>'password',gen_salt('bf',10)),crypt(v_rec,gen_salt('bf',10)))
+ RETURNING id INTO v_uid;
+ RETURN jsonb_build_object('token',public.mt_issue(v_uid));
+EXCEPTION WHEN unique_violation THEN RAISE EXCEPTION 'این نام کاربری یا شماره قبلاً ثبت شده است';
+END $function$;
+
+ALTER FUNCTION public.mt_api_admin_recover(jsonb) OWNER TO authenticated;
+ALTER FUNCTION public.mt_api_recover(jsonb) OWNER TO authenticated;
+ALTER FUNCTION public.mt_api_recovery_set(jsonb) OWNER TO authenticated;
+ALTER FUNCTION public.mt_api_register(jsonb) OWNER TO authenticated;
+REVOKE CREATE ON SCHEMA public FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.mt_api_admin_recover(jsonb), public.mt_api_recover(jsonb),
+ public.mt_api_recovery_set(jsonb), public.mt_api_register(jsonb) TO anon,authenticated;
