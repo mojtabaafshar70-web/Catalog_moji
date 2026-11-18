@@ -73,7 +73,7 @@ const jres=(o,s=200)=>new Response(JSON.stringify(o),{status:s,headers:{'Content
 const NET='ارتباط با سرور برقرار نشد؛ اینترنت یا فیلترشکن را بررسی کنید';
 async function rpc(name,p){
  let r;
- try{r=await orig(SB_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({p:{...(p||{}),token:tok(),store:storeSlug()}})})}
+ try{r=await orig(SB_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({p:{...(p||{}),store:storeSlug(),token:tok()}})})}
  catch{throw new Error(NET)}
  const j=await r.json().catch(()=>null);
  if(!r.ok){const m=(j&&j.message)||'';
@@ -84,7 +84,7 @@ async function rpc(name,p){
  return j}
 async function fn(body){
  let r;
- try{r=await orig(SB_URL+'/functions/v1/mt-api',{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({...body,token:tok(),store:storeSlug()})})}
+ try{r=await orig(SB_URL+'/functions/v1/mt-api',{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({...body,store:storeSlug(),token:tok()})})}
  catch{throw new Error(NET)}
  const j=await r.json().catch(()=>null);
  if(r.status===404)throw new Error('تابع mt-api هنوز در Supabase ساخته نشده است');
