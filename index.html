@@ -207,10 +207,8 @@ const openAdmin=go(async()=>{if(S.me.role==='admin'){S.view='admin';S.tab='order
 const after=async()=>{S.set=await api('GET','/api/settings');applyTheme();S.me=await api('GET','/api/me');S.view=S.me.role==='admin'?'admin':'cust';S.tab=S.me.role==='admin'?'orders':'cat';await load();draw()};
 const doSetup=go(async()=>{await api('POST','/api/admin/setup',{username:val('a_user'),password:val('a_pass')});await after();toast('حساب مدیر ساخته شد')});
 const doAdmin=go(async()=>{await api('POST','/api/admin/login',{username:val('a_user'),password:val('a_pass')});await after()});
-const doArec=go(async()=>{await api('POST','/api/admin/recover',{username:val('a_user'),recovery:val('a_rec'),next:val('a_pass')});S.mode='admin';draw();toast('رمز تغییر کرد؛ وارد شوید')});
 const doLogin=go(async()=>{await api('POST','/api/login',{username:val('a_user'),password:val('a_pass')});await after()});
 const doReg=go(async()=>{await api('POST','/api/register',{name:val('r_name'),username:val('a_user'),phone:val('a_phone'),city:val('r_city'),address:val('r_addr'),password:val('a_pass')});await after();toast('ثبت‌نام انجام شد')});
-const doRec=go(async()=>{await api('POST','/api/recover',{username:val('a_user'),recovery:val('a_rec'),next:val('a_pass')});S.mode='login';draw();toast('رمز تغییر کرد؛ وارد شوید')});
 const logout=go(async()=>{await api('POST','/api/logout',{});S.me={role:null};S.view='choice';draw()});
 /* ---------- مشتری ---------- */
 function custView(){return {cat:vCat,cart:vCart,ord:vOrd,acc:vAcc}[S.tab]()}
