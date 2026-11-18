@@ -2,6 +2,11 @@
 <html lang="fa" dir="rtl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f5e63">
+<link rel="manifest" href="./manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ابزارآلات مجتبی">
+
 <title>ابزارآلات مجتبی</title>
 <style>
 
@@ -333,4 +338,5 @@ function aSet(){return appearance()+`<div class="card"><b>تنظیمات فرو�
 const saveSet=go(async()=>{await api('PUT','/api/admin/settings',{shop_name:val('s_name'),phone:val('s_phone'),address:val('s_addr'),bank_card:val('s_card'),bank_account:val('s_acc'),bank_owner:val('s_own')});S.set=await api('GET','/api/settings');draw();toast('ذخیره شد')});
 
 go(boot)();
-</script></body></html>
+</script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}))}</script>
+</body></html>
