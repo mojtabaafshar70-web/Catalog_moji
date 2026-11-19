@@ -133,6 +133,7 @@ async function route(m,p,b){
  if(x=id('/api/orders/(\\d+)/payments'))return rpc('mt_api_payment_add',{...b,id:x});
  if(x=id('/api/orders/(\\d+)/pay-online'))throw new Error('پرداخت آنلاین فعال نیست؛ از «ثبت اطلاعات واریز» استفاده کنید');
  if(x=id('/api/admin/payments/(\\d+)/status'))return rpc('mt_api_payment_status',{...b,id:x});
+ if(x=id('/api/admin/orders/(\\d+)/payments'))return rpc('mt_api_admin_payment_add',{...b,id:x});
  if(is('GET','/api/admin/customers'))return rpc('mt_api_customers');
  if(is('POST','/api/admin/invoices/confirm'))return rpc('mt_api_invoice_confirm',b);
  if(is('GET','/api/customer/tier'))return rpc('mt_api_customer_tier');
