@@ -192,7 +192,38 @@ async function api(m,p,b){const r=await fetch(p,{method:m,headers:{'Content-Type
 const toast=m=>{const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',3500)};
 const go=f=>async(...a)=>{try{await f(...a)}catch(e){toast(e.message)}};
 const saveCart=()=>localStorage.setItem('cart',JSON.stringify(S.cart));
-const notifyAdmin=async(title,body)=>{\n try{if(window.Android&&typeof window.Android.notify==='function'){window.Android.notify(String(title),String(body));return true}}catch(e){}\n try{if('Notification' in window&&Notification.permission==='granted'){new Notification(title,{body,icon:'./icon.svg'});return true}}catch(e){}\n return false;\n};\nconst enableAdminNotifications=go(async()=>{\n if(window.Android&&typeof window.Android.notify==='function'){toast('اعلان‌های گوشی فعال هستند');return}\n if(!('Notification' in window))return toast('این دستگاه اعلان مرورگر را پشتیبانی نمی‌کند');\n const p=await Notification.requestPermission();\n toast(p==='granted'?'اعلان‌های Ahura Tools فعال شد':p==='denied'?'اعلان‌ها مسدود شده‌اند؛ از تنظیمات مرورگر فعالشان کن':'اعلان فعال نشد');\n});\nconst adminWatch=async()=>{\n if(S.me.role!=='admin')return;\n try{\n  const before=S.adminBaseline;\n  const oldIds=new Set(S.orders.map(o=>String(o.id)));\n  const orders=await api('GET','/api/admin/orders');\n  S.orders=orders;\n  const newest=orders.reduce((m,o)=>Math.max(m,Number(o.id)||0),0);\n  if(S.adminBaseline===null){S.adminBaseline=newest;return}\n  const fresh=orders.filter(o=>o.status==='pending'&&!oldIds.has(String(o.id)));\n  if(fresh.length){\n   const o=fresh.sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0))[0];\n   const msg='سفارش جدید از '+(o.cust_name||'مشتری')+' · '+(o.code||'');\n   toast('🔔 '+msg);\n   await notifyAdmin('Ahura Tools',msg);\n   S.adminBaseline=Math.max(S.adminBaseline,newest);\n   if(S.view==='admin'&&S.tab==='orders')draw();\n  }else if(newest>S.adminBaseline){S.adminBaseline=newest}\n }catch(e){}\n};\nconst startAdminWatch=()=>{\n if(S.adminWatchTimer)clearInterval(S.adminWatchTimer);\n S.adminBaseline=S.orders.reduce((m,o)=>Math.max(m,Number(o.id)||0),0);\n S.adminWatchTimer=setInterval(adminWatch,15000);\n};\nasync function boot(){try{S.set=await api('GET','/api/settings')}catch(e){$('root').innerHTML='<div class="center"><div class="card"><h3>اتصال برقرار نشد</h3><div class="mu">'+esc(e.message)+'</div><button class="p w" onclick="location.reload()">تلاش دوباره</button></div></div>';return}applyTheme();S.me=await api('GET','/api/me');S.view='choice';await load();draw();showWelcome();const pq=new URLSearchParams(location.search).get('pay');if(pq){toast(pq==='ok'?'پرداخت با موفقیت انجام شد':'پرداخت انجام نشد');history.replaceState(null,'',location.pathname)}}
+const notifyAdmin=async(title,body)=>{
+ try{if(window.Android&&typeof window.Android.notify==='function'){window.Android.notify(String(title),String(body));return true}}catch(e){}
+ try{if('Notification' in window&&Notification.permission==='granted'){new Notification(title,{body,icon:'./icon.svg'});return true}}catch(e){}
+ return false;
+};
+const enableAdminNotifications=go(async()=>{
+ if(window.Android&&typeof window.Android.notify==='function'){toast('اعلان‌های گوشی فعال هستند');return}
+ if(!('Notification' in window))return toast('این دستگاه اعلان مرورگر را پشتیبانی نمی‌کند');
+ const p=await Notification.requestPermission();
+ toast(p==='granted'?'اعلان‌های Ahura Tools فعال شد':p==='denied'?'اعلان‌ها مسدود شده‌اند؛ از تنظیمات مرورگر فعالشان کن':'اعلان فعال نشد');
+});
+const adminWatch=async()=>{
+ if(S.me.role!=='admin')return;
+ try{
+  const before=S.adminBaseline;
+  const oldIds=new Set(S.orders.map(o=>String(o.id)));
+  const orders=await api('GET','/api/admin/orders');
+  S.orders=orders;
+  const newest=orders.reduce((m,o)=>Math.max(m,Number(o.id)||0),0);
+  if(S.adminBaseline===null){S.adminBaseline=newest;return}
+  const fresh=orders.filter(o=>o.status==='pending'&&!oldIds.has(String(o.id)));
+  if(fresh.length){
+   const o=fresh.sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0))[0];
+   const msg='سفارش جدید از '+(o.cust_name||'مشتری')+' · '+(o.code||'');
+   toast('🔔 '+msg);
+   await notifyAdmin('Ahura Tools',msg);
+   S.adminBaseline=Math.max(S.adminBaseline,newest);
+   if(S.view==='admin'&&S.tab==='orders')draw();
+  }else if(newest>S.adminBaseline){S.adminBaseline=newest}
+ }catch(e){}
+};
+const startAdminWatch=()=>{\n if(S.adminWatchTimer)clearInterval(S.adminWatchTimer);\n S.adminBaseline=S.orders.reduce((m,o)=>Math.max(m,Number(o.id)||0),0);\n S.adminWatchTimer=setInterval(adminWatch,15000);\n};\nasync function boot(){try{S.set=await api('GET','/api/settings')}catch(e){$('root').innerHTML='<div class="center"><div class="card"><h3>اتصال برقرار نشد</h3><div class="mu">'+esc(e.message)+'</div><button class="p w" onclick="location.reload()">تلاش دوباره</button></div></div>';return}applyTheme();S.me=await api('GET','/api/me');S.view='choice';await load();draw();showWelcome();const pq=new URLSearchParams(location.search).get('pay');if(pq){toast(pq==='ok'?'پرداخت با موفقیت انجام شد':'پرداخت انجام نشد');history.replaceState(null,'',location.pathname)}}
 function fixCart(){if(S.me.role!=='customer')return;let ch=false;Object.keys(S.cart).forEach(id=>{if(!S.prods.some(p=>p.id==id)){delete S.cart[id];ch=true}});if(ch)saveCart()}
 async function load(){if(S.me.role==='admin'){[S.prods,S.orders,S.custs]=await Promise.all([api('GET','/api/products'),api('GET','/api/admin/orders'),api('GET','/api/admin/customers')]);if(S.adminWatchTimer===null)startAdminWatch()}
  else if(S.me.role==='customer'){[S.prods,S.orders,S.tier]=await Promise.all([api('GET','/api/products'),api('GET','/api/orders'),api('GET','/api/customer/tier')]);fixCart()}}
