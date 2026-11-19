@@ -204,7 +204,7 @@ const T_C=()=>[['cat','کاتالوگ'],['cart','سبد ('+Object.keys(S.cart).l
 const T_A=[['orders','سفارش‌ها'],['prods','محصولات'],['tina','تینا'],['price','قیمت'],['custs','مشتریان'],['tiers','باشگاه مشتریان'],['invoices','تاریخچه فاکتورها'],['set','تنظیمات']];
 function nav(){return '<nav>'+(S.view==='admin'?T_A:T_C()).map(([k,l])=>`<button class="${S.tab===k?'on':''}" onclick="S.tab='${k}';S.done=null;draw()"><i class="ic" style="--m:var(--m-${IC[k]})"></i><span>${l}</span></button>`).join('')+'</nav>'}
 /* ---------- ورود ---------- */
-function vChoice(){return `<div class="center"><div class="card"><div class="logo"><img src="https://basepic.com/u3q96f9y/file_000000009ef8821194d4feb6cae1233f.png" alt="لوگوی ابزارآلات مجتبی"></div>
+function vChoice(){return `<div class="center"><div class="card">
  <div class="mu">ابزار و یراق</div><div class="row" style="justify-content:center;gap:10px"><i class="ic" style="--m:var(--m-sic);width:20px;height:58px;color:var(--ac)"></i><h2 style="margin:4px 0">${esc(S.set.shop_name)}</h2><i class="ic" style="--m:var(--m-sic);width:20px;height:58px;color:var(--ac);transform:scaleX(-1)"></i></div><div class="mu" style="margin-bottom:14px">برای ادامه، نوع ورود خود را انتخاب کنید.</div>
  <button class="p w" onclick="openAdmin()">ورود به پنل مدیریت</button><button class="w" onclick="pickCust()">ورود به پنل مشتری</button></div></div>`}
 function vAuth(){const m=S.mode,f=(id,ph,t='text',ac='')=>`<input id="${id}" type="${t}" placeholder="${ph}" ${ac?`autocomplete="${ac}"`:''}>`;
