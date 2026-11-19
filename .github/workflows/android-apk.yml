@@ -21,6 +21,12 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Prepare launcher icon
+        run: |
+          mkdir -p app/src/main/res/drawable
+          curl -L --fail --retry 3 'https://basepic.com/u3q96f9y/file_000000009ef8821194d4feb6cae1233f.png' -o /tmp/app-logo.png
+          convert /tmp/app-logo.png -resize 512x512^ -gravity center -extent 512x512 app/src/main/res/drawable/app_icon.png
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
