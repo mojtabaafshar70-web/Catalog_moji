@@ -3,6 +3,8 @@
     <application
         android:allowBackup="false"
         android:label="ابزارآلات مجتبی"
+        android:icon="@drawable/app_icon"
+        android:roundIcon="@drawable/app_icon"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity
