@@ -16,8 +16,7 @@ import android.content.Intent;
 import android.content.Context;
 import android.net.Uri;
 import android.view.KeyEvent;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.ActivityCompat;
+
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -32,7 +31,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         createNotificationChannel();
         if (Build.VERSION.SDK_INT >= 33) {
-            ActivityCompat.requestPermissions(this, new String[]{"android.permission.POST_NOTIFICATIONS"}, NOTIFICATION_REQUEST);
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, NOTIFICATION_REQUEST);
         }
 
         webView = new WebView(this);
@@ -94,14 +93,15 @@ public class MainActivity extends Activity {
                     activity, 0, intent,
                     PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0)
                 );
-                NotificationCompat.Builder b = new NotificationCompat.Builder(activity, CHANNEL_ID)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                android.app.Notification.Builder b = Build.VERSION.SDK_INT >= 26
+                    ? new android.app.Notification.Builder(activity, CHANNEL_ID)
+                    : new android.app.Notification.Builder(activity);
+                b.setSmallIcon(android.R.drawable.ic_dialog_info)
                     .setContentTitle(title)
                     .setContentText(body)
-                    .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setAutoCancel(true)
                     .setContentIntent(pi);
+                if (Build.VERSION.SDK_INT >= 21) b.setPriority(android.app.Notification.PRIORITY_HIGH);
                 nm.notify((int)(System.currentTimeMillis() & 0x7fffffff), b.build());
             });
         }
