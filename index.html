@@ -127,7 +127,7 @@ async function route(m,p,b){
  if(is('POST','/api/admin/prices/revert'))return rpc('mt_api_prices_revert',b);
  if(is('POST','/api/orders'))return rpc('mt_api_order_create',b);
  if(is('GET','/api/orders'))return rpc('mt_api_orders');
- if(x=id('/api/orders/(\\d+)/items')&&m==='PUT')return rpc('mt_api_order_update',{...b,id:x});
+ if(x=id('/api/orders/(\\d+)/items')){if(m==='PUT')return rpc('mt_api_order_update',{...b,id:x})}
  if(is('GET','/api/admin/orders'))return rpc('mt_api_admin_orders');
  if(x=id('/api/admin/orders/(\\d+)/status'))return rpc('mt_api_order_status',{...b,id:x});
  if(is('POST','/api/admin/discounts'))return rpc('mt_api_discounts',b);
