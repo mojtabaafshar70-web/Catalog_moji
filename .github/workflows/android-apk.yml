@@ -56,3 +56,4 @@ jobs:
           # launcher-only logo and invoice updates
 
 # Rebuild APK for the latest published customer invoice editor.
+# Force rebuild after launcher notification startup fix.
