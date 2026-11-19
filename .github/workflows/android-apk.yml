@@ -54,3 +54,5 @@ jobs:
           retention-days: 30
           # latest source build
           # launcher-only logo and invoice updates
+
+# Rebuild APK for the latest published customer invoice editor.
